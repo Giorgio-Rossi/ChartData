@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <script src="echarts.min.js"></script>
+    <script src="alasql.min.js"></script>
+	<script src="randomnumber.js"></script> 
+	<script src="randomboolean.js"></script> 
+	<script src="updategraph.js"></script> 
+	<script src="https://cdn.jsdelivr.net/npm/faker@5.5.3/dist/faker.min.js"></script>
+  </head>
+  <body>
+		<div name="Buttons" style="width: 99%; margin: auto; position: absolute; top: 50%; -ms-transform: translateY(-50%); transform: translateY(-50%);">
+			<form>
+				<table style="margin: auto; width: 40%;">
+					<tr>
+						<th><div id="demo_chart" style="width:1200px;height:500px;"></div></th>
+						<th style="width: 70%; vertical-align: top; text-align: left;">
+							<table style="top: 50%; -ms-transform: translateY(-50%); transform: translateY(-50%);">
+								<tr>
+									<th>
+										<select id="opt1" style="float: left; width: 160px; padding: 5px; border: 1px solid #ccc; border-radius: 5px; background-color: #f7f7f7; color: #333;">
+											<option value="0">Vendite per provincia</option>
+											<option value="1">Vendite merceologiche</option>
+											<option value="2">Vendite mensili</option>
+											<option value="3">Vendite negozi</option>
+											<option value="4">Vendite tessere fedelta'</option>
+										</select>
+										<form >
+										<div style="text-align: center;">
+											<input onClick="updateGraph()" type="button" name="confirm" value="Conferma" style="float: center; width: 80px; margin-top: 40px; background-color: #0074d9; color: #fff; border: none; padding: 10px 00px; cursor: pointer; border-radius: 5px;">
+										</div>
+									</form>
+									</th>
+								</tr>
+							</table>	
+						</th>
+					</tr>
+				</table>
+			</form>
+		</div>
+    <script>
+  
+	  // Numero di elementi
+      const Num_Negozi = 20;
+      const Num_Articoli = 1000;
+      const Num_Clienti = 300;
+      const Num_Scontrino = 250;
+
+	  // Creazione del Database
+      alasql('CREATE DATABASE ProjectWork');
+      alasql('USE ProjectWork');
+
+	  // Creazione Tabelle																											
+      alasql('CREATE TABLE Scontrino (ID_Scontrino number, ID_Cliente number, Cod_Negozio number, Sconto_applicato string, PrezzoScontrino number, Flag_Online bool,  Tessera_fedelta bool, Data date)'); //cambio
+      alasql('CREATE TABLE Cliente (ID_Cliente number, ID_Provincia string, Codice_sconto bool)');
+      alasql('CREATE TABLE Articolo (ID_Articolo number, ID_Categoria number, Prezzo_Articolo number, ID_Scontrino number, ScontoApplicato number )'); 
+      alasql('CREATE TABLE Negozio (ID_Negozio number, ID_Provincia string)');
+      alasql('CREATE TABLE Provincia (ID_Provincia number, Desc_Provincia string)'); 
+      alasql('CREATE TABLE Categoria (ID_Categoria number, Desc_Categoria string)');      
+
+      // Inserimento Categorie
+      alasql('INSERT INTO Categoria VALUES (1,"Felpa")');
+      alasql('INSERT INTO Categoria VALUES (2,"Pantaloni")');
+      alasql('INSERT INTO Categoria VALUES (3,"Maglietta")');
+      alasql('INSERT INTO Categoria VALUES (4,"Giacche")');
+
+      // Inserimento Province
+      alasql('INSERT INTO Provincia VALUES (1,"Milano")');
+      alasql('INSERT INTO Provincia VALUES (2,"Lodi")');
+      alasql('INSERT INTO Provincia VALUES (3,"Roma")');
+      alasql('INSERT INTO Provincia VALUES (4,"Genova")');
+      alasql('INSERT INTO Provincia VALUES (5,"Cagliari")');
+
+	// Popolo la tabella cliente
+      	for(let i=1; i <= Num_Clienti; i++){					
+        	alasql('INSERT INTO  Cliente VALUES ( '+ i + ',' + generateRandom(1,6) + ',' + generateRandomBoolean() + ')');
+      	}
+
+	// Popolo la tabella Negozio
+      	for(let i=1; i <= Num_Negozi; i++){
+        	alasql('INSERT INTO  Negozio VALUES ( '+ i + ',' + generateRandom(1,6) + ')');
+      	}
+
+	// Popolo la tabella Articolo
+	for(let i=1; i <= Num_Articoli; i++){
+		var Sconto = 0;	
+		var articolo = generateRandom(15,150); 
+			    	
+			if (articolo > 50)
+				if (articolo > 100)
+					Sconto =  10;
+			else
+				Sconto = 20; 
+				 
+		alasql('INSERT INTO  Articolo VALUES ( '+ i + ',' + generateRandom(1,5) + ',' + articolo + ' , NULL, ' + Sconto + ')');
+      	}
+		
+
+	// Popolo la tabella scontrino
+	var used=[];
+	  	for(let i=1; i<= Num_Scontrino; i++){
+			var a;
+			var Flag_Online = null;	
+			var IDArticoloRandomico;
+			var somma=0;
+			var temp=0;
+			var NumArticoliScontrino = generateRandom(1,6);
+			Flag_Online = generateRandomBoolean();
+			Flag_Scontrino = generateRandomBoolean();
+
+			alasql('INSERT INTO Scontrino VALUES ('+ i + ', NULL ,  NULL  , ' + Flag_Online + ', NULL, '  + Flag_Online + ',' + Flag_Scontrino + ', ?)');
+
+				if (Flag_Online == true){
+					a = generateRandom(1, Num_Clienti);
+					alasql('UPDATE Scontrino SET ID_Cliente = ' + a + ' WHERE ID_Scontrino='+i);
+					} else
+						alasql('UPDATE Scontrino SET Cod_Negozio = ' + generateRandom(1, Num_Negozi) + ' WHERE ID_Scontrino='+i);
+
+			
+			for (let j=0; j< NumArticoliScontrino; j++){
+
+				IDArticoloRandomico = generateRandomExlude(1, Num_Articoli, used);
+				used.push(IDArticoloRandomico)
+				alasql('UPDATE Articolo SET ID_Scontrino = ' + i + ' WHERE ID_Articolo = ' + IDArticoloRandomico);
+
+				// Applico lo sconto
+				if(!Flag_Scontrino)
+					temp = (alasql('SELECT Prezzo_Articolo FROM Articolo WHERE ID_Articolo = ' + IDArticoloRandomico)[0].Prezzo_Articolo*(100-alasql('SELECT ScontoApplicato FROM Articolo WHERE ID_Articolo = ' + IDArticoloRandomico)[0].ScontoApplicato))/100;				
+				else 
+					temp= (alasql('SELECT Prezzo_Articolo FROM Articolo WHERE ID_Articolo = ' + IDArticoloRandomico)[0].Prezzo_Articolo);
+				somma=somma+temp;
+			}
+
+			if(Flag_Scontrino)
+				somma=(somma*70)/100;
+
+			alasql('UPDATE Scontrino SET PrezzoScontrino='+((Math.round((somma)*100))/100).toFixed(2)+' WHERE ID_Scontrino='+i);
+	  }
+
+	  		// Assegno una data randomica alla tabella Scontrino
+	  		for (let i = 1; i <= Num_Scontrino; i++) {
+  				alasql('UPDATE Scontrino SET Data = ? WHERE ID_Scontrino = ?', [faker.date.between(new Date(2022, 5, 1), new Date()), i]);
+		}
+
+
+
+// Numero di ordini effettuati online in totale
+const query1 = `
+	SELECT COUNT(*) AS NumeroOrdiniOnline
+	FROM Scontrino
+	WHERE Flag_Online = true
+`;
+const result1 = alasql(query1);
+console.log('Numero di ordini effettuati online:');
+console.log(result1[0].NumeroOrdiniOnline);
+
+// Numero di ordini effettuati nei negozi fisici raggruppati per ID Provincia
+const query2 = `
+  SELECT P.ID_Provincia, COUNT(*) AS NumeroOrdiniNegozioFisico
+  FROM Scontrino AS S
+  LEFT JOIN Negozio AS N ON S.Cod_Negozio = N.ID_Negozio
+  LEFT JOIN Provincia AS P ON N.ID_Provincia = P.ID_Provincia
+  WHERE S.Flag_Online = false
+  GROUP BY P.ID_Provincia
+`;
+const result2 = alasql(query2);
+console.log('Numero di ordini effettuati nei negozi fisici raggruppati per ID Provincia:');
+console.log(result2);
+
+// Numero di ordini effettuati in ecommerce
+const query3 = `
+	SELECT COUNT(*) AS NumeroScontiApplicatiInEcommerce
+	FROM Scontrino AS S
+	INNER JOIN Cliente AS C ON S.ID_Cliente = C.ID_Cliente
+	INNER JOIN Articolo AS A ON S.ID_Scontrino = A.ID_Scontrino
+	WHERE S.Flag_Online = true AND (C.Codice_sconto = true OR C.Tessera_fedelta = true)
+`;
+const result3 = alasql(query3);
+console.log('Numero di sconti applicati in ecommerce:');
+console.log(result3);
+
+// Valore totale degli sconti applicati nei negozi fisici ordinati per id negozio e id provincia
+const query4 = `
+	SELECT N.ID_Negozio, P.ID_Provincia, SUM(A.ScontoApplicato) AS ValoreTotaleDegliScontiApplicati
+	FROM Articolo AS A
+	INNER JOIN Scontrino AS S ON A.ID_Scontrino = S.ID_Scontrino
+	INNER JOIN Negozio AS N ON S.Cod_Negozio = N.ID_Negozio
+	INNER JOIN Provincia AS P ON N.ID_Provincia = P.ID_Provincia
+	WHERE S.Flag_Online = false 
+	GROUP BY N.ID_Negozio, P.ID_Provincia
+	ORDER BY N.ID_Negozio, P.ID_Provincia
+`;
+const result4 = alasql(query4);
+console.log('Quantita degli sconti applicati nei negozi fisici ordinati per ID negozio e ID provincia:');
+console.log(result4);
+
+
+	//Stampo le tabelle
+	console.log("Categoria: ");
+    console.log(alasql('SELECT * FROM Categoria')); 
+	console.log("Provincia: ");
+    console.log(alasql('SELECT * FROM Provincia')); 
+	console.log("Negozio: ");
+    console.log(alasql('SELECT * FROM Negozio')); 
+	console.log("Articolo: ");
+	console.log(alasql('SELECT * FROM Articolo')); 
+	console.log("Cliente: ");
+    console.log(alasql('SELECT * FROM Cliente')); 
+	console.log("Scontrino: ");
+	console.log(alasql('SELECT * FROM Scontrino'));
+
+
+ 
+      var myChart = echarts.init(document.getElementById('demo_chart'));  
+
+      var option = {
+        title: {
+			text: ''
+        },
+        xAxis: {
+          data: '    '
+        },
+
+        yAxis: {data: '    '},
+        legend: {},
+      };
+      myChart.setOption(option);
+	  
+	  
+	  function lastMonths(){
+		const monthNames = [
+		  'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+		  'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
+		];
+
+		// Ottieni la data corrente
+		const currentDate = new Date();
+
+		// Crea un array per i mesi
+		const monthsArray = [];
+
+		// Aggiungi il mese attuale
+		monthsArray.push(monthNames[currentDate.getMonth()]);
+
+		// Aggiungi gli ultimi 11 mesi passati
+		for (let i = 1; i <= 11; i++) {
+		  const lastMonth = new Date(currentDate);
+		  lastMonth.setMonth(currentDate.getMonth() - i);
+		  monthsArray.push(monthNames[lastMonth.getMonth()]);
+		}
+		return monthsArray.reverse();
+	  }
+
+	  var _lastMonths= lastMonths()
+		
+    </script>
+  </body>
+</html>
