@@ -8,3 +8,5 @@
 <li><code>SQL Query</code></li>
 <li><code>CSS</code></li>
 </ul>
+<h2>🎯 The goal</h2>
+<p></p>
